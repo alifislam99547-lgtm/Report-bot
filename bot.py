@@ -16,7 +16,7 @@ from telethon.sessions import StringSession
 import logging
 
 # ================= = CONFIGURATION =============
-BOT_TOKEN = "9298758961:AAFbbHI9vqeGqxN2nndgb0GCF0BY5WtimTM"
+BOT_TOKEN = "9298758961:AAFKZiZ2ocP1rbnHSEaDdpXAqJHChG-0qE0"
 API_ID = 34710075
 API_HASH = "f4ebf340bff0a1bcdc17d3a670475e4e"
 
